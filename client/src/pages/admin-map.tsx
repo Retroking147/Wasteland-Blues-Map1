@@ -76,7 +76,9 @@ export default function AdminMap() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/map"] });
+      // Invalidate both admin and public map data after publishing
+      queryClient.invalidateQueries({ queryKey: ["/api/map/admin"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/map/public"] });
       toast({
         title: "Changes Published",
         description: "All changes have been pushed to the public map",
