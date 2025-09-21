@@ -50,6 +50,10 @@ export interface IStorage {
   publishAllChanges(): Promise<void>;
   getPublishedMapData(): Promise<MapData>;
   getAdminMapData(): Promise<MapData>;
+  
+  // Settings
+  getSettings(): Promise<MapState>;
+  updateSettings(settings: Partial<Pick<MapState, 'appName' | 'version' | 'adminCode'>>): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -244,6 +248,8 @@ export class DatabaseStorage implements IStorage {
           id: "singleton",
           lastPublishedAt: null,
           adminCode: "HOUSE-ALWAYS-WINS",
+          appName: "Wasteland Blues",
+          version: "Interactive Wasteland Navigator v2.281",
         })
         .returning();
     }
@@ -284,6 +290,8 @@ export class DatabaseStorage implements IStorage {
       locations: publishedLocations,
       roads: publishedRoads,
       lastPublishedAt: state.lastPublishedAt || undefined,
+      appName: state.appName,
+      version: state.version,
     };
   }
 
@@ -296,7 +304,21 @@ export class DatabaseStorage implements IStorage {
       locations: allLocations,
       roads: allRoads,
       lastPublishedAt: state.lastPublishedAt || undefined,
+      appName: state.appName,
+      version: state.version,
     };
+  }
+
+  // Settings
+  async getSettings(): Promise<MapState> {
+    return this.getMapState();
+  }
+
+  async updateSettings(settings: Partial<Pick<MapState, 'appName' | 'version' | 'adminCode'>>): Promise<void> {
+    await db
+      .update(mapState)
+      .set(settings)
+      .where(eq(mapState.id, "singleton"));
   }
 }
 
@@ -313,7 +335,9 @@ export class MemStorage implements IStorage {
     this.mapState = {
       id: "singleton",
       lastPublishedAt: null,
-      adminCode: "HOUSE-ALWAYS-WINS"
+      adminCode: "HOUSE-ALWAYS-WINS",
+      appName: "Wasteland Blues",
+      version: "Interactive Wasteland Navigator v2.281"
     };
 
     // Initialize with some sample data
@@ -594,7 +618,9 @@ export class MemStorage implements IStorage {
     return {
       locations,
       roads,
-      lastPublishedAt: this.mapState.lastPublishedAt || undefined
+      lastPublishedAt: this.mapState.lastPublishedAt || undefined,
+      appName: this.mapState.appName,
+      version: this.mapState.version
     };
   }
 
@@ -604,8 +630,19 @@ export class MemStorage implements IStorage {
     return {
       locations,
       roads,
-      lastPublishedAt: this.mapState.lastPublishedAt || undefined
+      lastPublishedAt: this.mapState.lastPublishedAt || undefined,
+      appName: this.mapState.appName,
+      version: this.mapState.version
     };
+  }
+
+  // Settings
+  async getSettings(): Promise<MapState> {
+    return this.mapState;
+  }
+
+  async updateSettings(settings: Partial<Pick<MapState, 'appName' | 'version' | 'adminCode'>>): Promise<void> {
+    this.mapState = { ...this.mapState, ...settings };
   }
 }
 

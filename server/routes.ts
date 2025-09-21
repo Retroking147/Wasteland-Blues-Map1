@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLocationSchema, insertVendorSchema, insertRoadSchema, locationEditorSchema } from "@shared/schema";
+import { insertLocationSchema, insertVendorSchema, insertRoadSchema, locationEditorSchema, settingsUpdateSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateRoadPath } from "./map-utils";
 
@@ -60,6 +60,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "All changes published successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to publish changes" });
+    }
+  });
+
+  // Settings management
+  app.get("/api/admin/settings", requireAdminAuth, async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      // Exclude adminCode from response for security
+      const { adminCode, ...safeSettings } = settings;
+      res.json(safeSettings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/admin/settings", requireAdminAuth, async (req, res) => {
+    try {
+      const validatedData = settingsUpdateSchema.parse(req.body);
+      await storage.updateSettings(validatedData);
+      res.json({ message: "Settings updated successfully" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid settings data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update settings" });
     }
   });
 

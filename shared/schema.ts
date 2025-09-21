@@ -36,6 +36,8 @@ export const mapState = pgTable("map_state", {
   id: varchar("id").primaryKey().default("singleton"),
   lastPublishedAt: text("last_published_at"),
   adminCode: text("admin_code").notNull().default("HOUSE-ALWAYS-WINS"),
+  appName: text("app_name").notNull().default("Wasteland Blues"),
+  version: text("version").notNull().default("Interactive Wasteland Navigator v2.281"),
 });
 
 export const insertLocationSchema = createInsertSchema(locations).omit({
@@ -63,6 +65,15 @@ export type InsertRoad = z.infer<typeof insertRoadSchema>;
 export type MapState = typeof mapState.$inferSelect;
 export type LocationEditor = z.infer<typeof locationEditorSchema>;
 
+// Settings update schema with validation
+export const settingsUpdateSchema = z.object({
+  appName: z.string().min(1).max(100).optional(),
+  version: z.string().min(1).max(200).optional(),
+  adminCode: z.string().min(1).max(100).optional(),
+});
+
+export type SettingsUpdate = z.infer<typeof settingsUpdateSchema>;
+
 export interface LocationWithVendors extends Location {
   vendors: Vendor[];
 }
@@ -71,4 +82,6 @@ export interface MapData {
   locations: LocationWithVendors[];
   roads: Road[];
   lastPublishedAt?: string;
+  appName?: string;
+  version?: string;
 }

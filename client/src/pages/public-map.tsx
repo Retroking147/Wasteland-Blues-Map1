@@ -69,9 +69,9 @@ export default function PublicMap() {
             <Radiation className="text-accent text-2xl terminal-glow" />
             <div>
               <h1 className="text-2xl font-bold text-primary terminal-glow font-mono">
-                WASTELAND BLUES
+                {(mapData?.appName || "WASTELAND BLUES").toUpperCase()}
               </h1>
-              <p className="text-muted-foreground text-sm">Interactive Wasteland Navigator v2.281</p>
+              <p className="text-muted-foreground text-sm">{mapData?.version || "Interactive Wasteland Navigator v2.281"}</p>
             </div>
           </div>
           

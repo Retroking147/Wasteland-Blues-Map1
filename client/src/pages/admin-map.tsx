@@ -9,10 +9,11 @@ import MapControls from "@/components/ui/map-controls";
 import LocationInfoModal from "@/components/modals/location-info-modal";
 import LocationEditorModal from "@/components/modals/location-editor-modal";
 import AdminAuthModal from "@/components/modals/admin-auth-modal";
+import SettingsModal from "@/components/modals/settings-modal";
 import { useMapState } from "@/hooks/use-map-state";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { MapData, LocationWithVendors } from "@shared/schema";
+import type { MapData, LocationWithVendors, MapState } from "@shared/schema";
 import { 
   Radiation, 
   Shield, 
@@ -22,7 +23,8 @@ import {
   Upload, 
   Edit,
   Route,
-  ShieldQuestion
+  ShieldQuestion,
+  Settings
 } from "lucide-react";
 
 export default function AdminMap() {
@@ -35,6 +37,7 @@ export default function AdminMap() {
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
   const [newLocationCoords, setNewLocationCoords] = useState<{ x: number; y: number } | undefined>();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -59,6 +62,11 @@ export default function AdminMap() {
 
   const { data: mapData, isLoading } = useQuery<MapData>({
     queryKey: ["/api/map/admin"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: settingsData } = useQuery<MapState>({
+    queryKey: ["/api/admin/settings"],
     enabled: isAuthenticated,
   });
 
@@ -216,9 +224,9 @@ export default function AdminMap() {
             <Radiation className="text-accent text-2xl terminal-glow" />
             <div>
               <h1 className="text-2xl font-bold text-primary terminal-glow font-mono">
-                NEW VEGAS TERRITORY MAP
+                {(mapData?.appName || "WASTELAND BLUES").toUpperCase()}
               </h1>
-              <p className="text-muted-foreground text-sm">Administrative Control Panel v2.281</p>
+              <p className="text-muted-foreground text-sm">Administrative Control Panel - {mapData?.version || "v2.281"}</p>
             </div>
           </div>
           
@@ -298,6 +306,42 @@ export default function AdminMap() {
                     ADD ROAD
                   </Button>
                 </div>
+              </div>
+            </Card>
+
+            {/* Settings */}
+            <Card className="pip-boy-border p-4">
+              <h2 className="text-lg font-bold text-primary mb-4 terminal-glow flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                APPLICATION SETTINGS
+              </h2>
+              
+              <div className="space-y-3">
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">App Name:</span>
+                    <span className="text-accent font-mono text-xs">
+                      {settingsData?.appName || "Wasteland Blues"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Version:</span>
+                    <span className="text-accent font-mono text-xs">
+                      {settingsData?.version || "Interactive Wasteland Navigator v2.281"}
+                    </span>
+                  </div>
+                </div>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowSettingsModal(true)}
+                  data-testid="open-settings-button"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  CONFIGURE SETTINGS
+                </Button>
               </div>
             </Card>
 
@@ -506,6 +550,16 @@ export default function AdminMap() {
         onClose={() => {
           setIsCreatingLocation(false);
           setNewLocationCoords(undefined);
+        }}
+      />
+
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        currentSettings={{
+          appName: settingsData?.appName || "Wasteland Blues",
+          version: settingsData?.version || "Interactive Wasteland Navigator v2.281",
+          adminCode: settingsData?.adminCode || "HOUSE-ALWAYS-WINS",
         }}
       />
     </div>
