@@ -69,7 +69,7 @@ export default function PublicMap() {
             <Radiation className="text-accent text-2xl terminal-glow" />
             <div>
               <h1 className="text-2xl font-bold text-primary terminal-glow font-mono">
-                NEW VEGAS TERRITORY MAP
+                WASTELAND BLUES
               </h1>
               <p className="text-muted-foreground text-sm">Interactive Wasteland Navigator v2.281</p>
             </div>
