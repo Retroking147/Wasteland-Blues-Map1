@@ -26,7 +26,10 @@ import {
 } from "lucide-react";
 
 export default function AdminMap() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Check localStorage for persistent authentication
+    return localStorage.getItem('admin_authenticated') === 'true';
+  });
   const [selectedLocation, setSelectedLocation] = useState<LocationWithVendors | null>(null);
   const [editingLocation, setEditingLocation] = useState<LocationWithVendors | null>(null);
   const [isCreatingLocation, setIsCreatingLocation] = useState(false);
@@ -47,7 +50,7 @@ export default function AdminMap() {
     stopDrawingRoad,
   } = useMapState();
 
-  // Show auth modal on mount
+  // Show auth modal on mount if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       setShowAuthModal(true);
@@ -109,6 +112,7 @@ export default function AdminMap() {
 
   const handleAuthSuccess = () => {
     setIsAuthenticated(true);
+    localStorage.setItem('admin_authenticated', 'true');
     setShowAuthModal(false);
   };
 
