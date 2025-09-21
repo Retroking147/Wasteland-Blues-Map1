@@ -35,7 +35,8 @@ export default function LocationMarker({
   isDrawingRoad = false,
   onClick
 }: LocationMarkerProps) {
-  const iconName = getLocationIcon(location.type);
+  // Ensure we always have a valid icon name, fallback to type-based icon or default
+  const iconName = location.icon || getLocationIcon(location.type) || 'map-pin';
   const IconComponent = iconMap[iconName as keyof typeof iconMap] || MapPin;
   const color = getLocationColor(location.type);
   

@@ -173,12 +173,23 @@ export class MemStorage implements IStorage {
       ...insertLocation, 
       id,
       description: insertLocation.description || null,
-      icon: insertLocation.icon || null,
+      icon: insertLocation.icon || this.getDefaultIcon(insertLocation.type),
       safetyRating: insertLocation.safetyRating || 3,
       isPublished: insertLocation.isPublished || false
     };
     this.locations.set(id, location);
     return location;
+  }
+  
+  private getDefaultIcon(type: string): string {
+    switch (type) {
+      case 'settlement': return 'home';
+      case 'dungeon': return 'skull-crossbones';
+      case 'landmark': return 'landmark';
+      case 'trader': return 'store';
+      case 'faction': return 'shield';
+      default: return 'map-pin';
+    }
   }
 
   async updateLocation(id: string, updates: Partial<InsertLocation>): Promise<Location> {

@@ -18,8 +18,8 @@ export default function RoadOverlay({ roads, locations }: RoadOverlayProps) {
         
         if (!fromLocation || !toLocation) return null;
 
-        // Generate path from location coordinates
-        const pathData = `M ${fromLocation.x}% ${fromLocation.y}% L ${toLocation.x}% ${toLocation.y}%`;
+        // Generate path from location coordinates using pixel values instead of percentages
+        const pathData = road.pathData || `M ${fromLocation.x} ${fromLocation.y} L ${toLocation.x} ${toLocation.y}`;
 
         return (
           <path
