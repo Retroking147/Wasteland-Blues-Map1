@@ -7,9 +7,15 @@ import {
   type InsertRoad,
   type MapState,
   type LocationWithVendors,
-  type MapData
+  type MapData,
+  locations,
+  vendors,
+  roads,
+  mapState
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // Locations
@@ -44,6 +50,246 @@ export interface IStorage {
   publishAllChanges(): Promise<void>;
   getPublishedMapData(): Promise<MapData>;
   getAdminMapData(): Promise<MapData>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // Locations
+  async getLocations(): Promise<LocationWithVendors[]> {
+    const locationsWithVendors = await db
+      .select()
+      .from(locations)
+      .leftJoin(vendors, eq(vendors.locationId, locations.id));
+    
+    const locationMap = new Map<string, LocationWithVendors>();
+    
+    for (const row of locationsWithVendors) {
+      const location = row.locations;
+      const vendor = row.vendors;
+      
+      if (!locationMap.has(location.id)) {
+        locationMap.set(location.id, { ...location, vendors: [] });
+      }
+      
+      if (vendor) {
+        locationMap.get(location.id)!.vendors.push(vendor);
+      }
+    }
+    
+    return Array.from(locationMap.values());
+  }
+
+  async getPublishedLocations(): Promise<LocationWithVendors[]> {
+    const locationsWithVendors = await db
+      .select()
+      .from(locations)
+      .leftJoin(vendors, eq(vendors.locationId, locations.id))
+      .where(eq(locations.isPublished, true));
+    
+    const locationMap = new Map<string, LocationWithVendors>();
+    
+    for (const row of locationsWithVendors) {
+      const location = row.locations;
+      const vendor = row.vendors;
+      
+      if (!locationMap.has(location.id)) {
+        locationMap.set(location.id, { ...location, vendors: [] });
+      }
+      
+      if (vendor) {
+        locationMap.get(location.id)!.vendors.push(vendor);
+      }
+    }
+    
+    return Array.from(locationMap.values());
+  }
+
+  async getLocation(id: string): Promise<LocationWithVendors | undefined> {
+    const locationsWithVendors = await db
+      .select()
+      .from(locations)
+      .leftJoin(vendors, eq(vendors.locationId, locations.id))
+      .where(eq(locations.id, id));
+
+    if (locationsWithVendors.length === 0) {
+      return undefined;
+    }
+
+    const location = locationsWithVendors[0].locations;
+    const locationVendors = locationsWithVendors
+      .map(row => row.vendors)
+      .filter((vendor): vendor is Vendor => vendor !== null);
+
+    return { ...location, vendors: locationVendors };
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    const [created] = await db.insert(locations).values(location).returning();
+    return created;
+  }
+
+  async updateLocation(id: string, location: Partial<InsertLocation>): Promise<Location> {
+    const [updated] = await db
+      .update(locations)
+      .set(location)
+      .where(eq(locations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteLocation(id: string): Promise<void> {
+    // Delete associated vendors first
+    await db.delete(vendors).where(eq(vendors.locationId, id));
+    // Delete associated roads (any road that has this location as start OR end)
+    await db.delete(roads).where(eq(roads.fromLocationId, id));
+    await db.delete(roads).where(eq(roads.toLocationId, id));
+    // Delete the location
+    await db.delete(locations).where(eq(locations.id, id));
+  }
+
+  async publishLocation(id: string): Promise<void> {
+    await db
+      .update(locations)
+      .set({ isPublished: true })
+      .where(eq(locations.id, id));
+  }
+
+  async unpublishLocation(id: string): Promise<void> {
+    await db
+      .update(locations)
+      .set({ isPublished: false })
+      .where(eq(locations.id, id));
+  }
+
+  // Vendors
+  async getVendorsByLocation(locationId: string): Promise<Vendor[]> {
+    return await db.select().from(vendors).where(eq(vendors.locationId, locationId));
+  }
+
+  async createVendor(vendor: InsertVendor): Promise<Vendor> {
+    const [created] = await db.insert(vendors).values(vendor).returning();
+    return created;
+  }
+
+  async updateVendor(id: string, vendor: Partial<InsertVendor>): Promise<Vendor> {
+    const [updated] = await db
+      .update(vendors)
+      .set(vendor)
+      .where(eq(vendors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteVendor(id: string): Promise<void> {
+    await db.delete(vendors).where(eq(vendors.id, id));
+  }
+
+  // Roads
+  async getRoads(): Promise<Road[]> {
+    return await db.select().from(roads);
+  }
+
+  async getPublishedRoads(): Promise<Road[]> {
+    return await db.select().from(roads).where(eq(roads.isPublished, true));
+  }
+
+  async createRoad(road: InsertRoad): Promise<Road> {
+    const [created] = await db.insert(roads).values(road).returning();
+    return created;
+  }
+
+  async updateRoad(id: string, road: Partial<InsertRoad>): Promise<Road> {
+    const [updated] = await db
+      .update(roads)
+      .set(road)
+      .where(eq(roads.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteRoad(id: string): Promise<void> {
+    await db.delete(roads).where(eq(roads.id, id));
+  }
+
+  async publishRoad(id: string): Promise<void> {
+    await db
+      .update(roads)
+      .set({ isPublished: true })
+      .where(eq(roads.id, id));
+  }
+
+  async unpublishRoad(id: string): Promise<void> {
+    await db
+      .update(roads)
+      .set({ isPublished: false })
+      .where(eq(roads.id, id));
+  }
+
+  // Map State
+  async getMapState(): Promise<MapState> {
+    let [state] = await db.select().from(mapState).where(eq(mapState.id, "singleton"));
+    
+    if (!state) {
+      // Create initial state if it doesn't exist
+      [state] = await db
+        .insert(mapState)
+        .values({
+          id: "singleton",
+          lastPublishedAt: null,
+          adminCode: "HOUSE-ALWAYS-WINS",
+        })
+        .returning();
+    }
+    
+    return state;
+  }
+
+  async verifyAdminCode(code: string): Promise<boolean> {
+    const state = await this.getMapState();
+    return state.adminCode === code;
+  }
+
+  async updateAdminCode(code: string): Promise<void> {
+    await db
+      .update(mapState)
+      .set({ adminCode: code })
+      .where(eq(mapState.id, "singleton"));
+  }
+
+  async publishAllChanges(): Promise<void> {
+    // Mark all locations and roads as published
+    await db.update(locations).set({ isPublished: true });
+    await db.update(roads).set({ isPublished: true });
+    
+    // Update last published timestamp
+    await db
+      .update(mapState)
+      .set({ lastPublishedAt: new Date().toISOString() })
+      .where(eq(mapState.id, "singleton"));
+  }
+
+  async getPublishedMapData(): Promise<MapData> {
+    const publishedLocations = await this.getPublishedLocations();
+    const publishedRoads = await this.getPublishedRoads();
+    const state = await this.getMapState();
+    
+    return {
+      locations: publishedLocations,
+      roads: publishedRoads,
+      lastPublishedAt: state.lastPublishedAt || undefined,
+    };
+  }
+
+  async getAdminMapData(): Promise<MapData> {
+    const allLocations = await this.getLocations();
+    const allRoads = await this.getRoads();
+    const state = await this.getMapState();
+    
+    return {
+      locations: allLocations,
+      roads: allRoads,
+      lastPublishedAt: state.lastPublishedAt || undefined,
+    };
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -355,4 +601,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
